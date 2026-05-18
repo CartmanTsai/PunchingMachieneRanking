@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>指尖拳擊機 | 排行榜</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background-color: #0d0d12; color: #e0e0e0; text-align: center; }
+        .board-container { max-width: 750px; margin: 50px auto; background: #1a1a2e; padding: 20px; border-radius: 10px; border: 2px solid #00ffcc; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { color: #00ffcc; padding: 10px; border-bottom: 1px solid #00ffcc; }
+        td { padding: 10px; font-size: 1.2rem; border-bottom: 1px solid #333; }
+        .rank-1 { color: #ffd700; font-weight: bold; text-shadow: 0 0 10px #ffd700; font-size: 1.5rem; }
+    </style>
+</head>
+
+
+<body>
+
+    <div class="board-container">
+        <h1> 即時排行榜</h1>
+        <table>
+            <thead>
+                <tr><th>Rank</th><th>Player</th><th>Score</th></tr>
+            </thead>
+            <tbody id="leaderboard-body">
+                <tr><td colspan="3">connecting ...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // 1. initialize Firebase 
+        const firebaseConfig = {
+            //  Firebase RTDB URL
+            databaseURL: "https://finalproject-f4e43-default-rtdb.firebaseio.com"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // 2. listen change of the database
+        // only get top 10 scores, sorted by score
+        db.ref('scores').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = ''; 
+
+            let dataArray = [];
+            snapshot.forEach((childSnapshot) => {
+                dataArray.push(childSnapshot.val());
+            });
+
+            // Firebase sort from smallest to largest, so reverse it to rank
+            dataArray.reverse();
+
+            dataArray.forEach((item, index) => {
+                let rowClass = index === 0 ? 'rank-1' : '';
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td>${index + 1}</td>
+                        <td>${item.player_name}</td>
+                        <td>${item.score}</td>
+                    </tr>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
