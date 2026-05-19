@@ -1,71 +1,208 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
     <meta charset="UTF-8">
-    <title>指尖拳擊機 | 排行榜</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拳擊機排行榜</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background-color: #0d0d12; color: #e0e0e0; text-align: center; }
-        .board-container { max-width: 750px; margin: 50px auto; background: #1a1a2e; padding: 20px; border-radius: 10px; border: 2px solid #00ffcc; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { color: #00ffcc; padding: 10px; border-bottom: 1px solid #00ffcc; }
-        td { padding: 10px; font-size: 1.2rem; border-bottom: 1px solid #333; }
-        .rank-1 { color: #ffd700; font-weight: bold; text-shadow: 0 0 10px #ffd700; font-size: 1.5rem; }
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, "Microsoft JhengHei", sans-serif;
+            background: #202124;
+            color: #f1f1f1;
+        }
+
+        .page {
+            width: min(900px, 92%);
+            margin: 40px auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        #status {
+            color: #c9c9c9;
+            font-size: 14px;
+        }
+
+        .board {
+            background: #2b2c30;
+            border: 1px solid #4a4b50;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #34363b;
+            color: #ffffff;
+            padding: 14px 12px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-top: 1px solid #44464c;
+            font-size: 22px;
+            text-align: center;
+        }
+
+
+        .rank-1 td {
+            background: #40351f;
+            color: #ffd36a;
+            font-weight: 700;
+        }
+
+        .empty {
+            padding: 32px 12px;
+            text-align: center;
+            color: #bbbbbb;
+            font-size: 18px;
+        }
+
+        @media (max-width: 600px) {
+            .page {
+                width: 94%;
+                margin-top: 24px;
+            }
+
+            .top-bar {
+                display: block;
+            }
+
+            h1 {
+                font-size: 30px;
+                margin-bottom: 8px;
+            }
+
+
+            th, td {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            td {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
-
-
 <body>
+    <div class="page">
+        <div class="top-bar">
+            <h1>拳擊機排行榜</h1>
+            <div id="status">連線中...</div>
+        </div>
 
-    <div class="board-container">
-        <h1> 即時排行榜</h1>
-        <table>
-            <thead>
-                <tr><th>Rank</th><th>Player</th><th>Score</th></tr>
-            </thead>
-            <tbody id="leaderboard-body">
-                <tr><td colspan="3">connecting ...</td></tr>
-            </tbody>
-        </table>
+        <div class="board">
+            <table>
+                <thead>
+                    <tr>
+                        <th>名次</th>
+                        <th>玩家</th>
+                        <th>分數</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td class="empty" colspan="3">正在讀取資料...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        // 1. initialize Firebase 
         const firebaseConfig = {
-            //  Firebase RTDB URL
             databaseURL: "https://finalproject-f4e43-default-rtdb.firebaseio.com"
         };
+
         firebase.initializeApp(firebaseConfig);
+
         const db = firebase.database();
+        const tbody = document.getElementById("leaderboard-body");
+        const status = document.getElementById("status");
 
-        // 2. listen change of the database
-        // only get top 10 scores, sorted by score
-        db.ref('scores').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
-            const tbody = document.getElementById('leaderboard-body');
-            tbody.innerHTML = ''; 
+        function escapeHtml(text) {
+            return String(text || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
 
-            let dataArray = [];
-            snapshot.forEach((childSnapshot) => {
-                dataArray.push(childSnapshot.val());
-            });
+        function showScores(scores) {
+            if (scores.length === 0) {
+                tbody.innerHTML = '<tr><td class="empty" colspan="3">目前還沒有分數</td></tr>';
+                return;
+            }
 
-            // Firebase sort from smallest to largest, so reverse it to rank
-            dataArray.reverse();
+            tbody.innerHTML = scores.map((item, index) => {
+                const rankClass = index === 0 ? "rank-1" : "";
+                const playerName = escapeHtml(item.player_name || "Player");
+                const score = Number(item.score || 0);
 
-            dataArray.forEach((item, index) => {
-                let rowClass = index === 0 ? 'rank-1' : '';
-                tbody.innerHTML += `
-                    <tr class="${rowClass}">
+                return `
+                    <tr class="${rankClass}">
                         <td>${index + 1}</td>
-                        <td>${item.player_name}</td>
-                        <td>${item.score}</td>
+                        <td>${playerName}</td>
+                        <td>${score}</td>
                     </tr>
                 `;
+            }).join("");
+        }
+
+        db.ref("scores")
+            .orderByChild("score")
+            .limitToLast(10)
+            .on("value", (snapshot) => {
+                const scores = [];
+
+                snapshot.forEach((childSnapshot) => {
+                    scores.push(childSnapshot.val());
+                });
+
+                scores.sort((a, b) => {
+                    const scoreA = Number(a.score || 0);
+                    const scoreB = Number(b.score || 0);
+
+                    if (scoreB !== scoreA) {
+                        return scoreB - scoreA;
+                    }
+
+                    return Number(b.timestamp || 0) - Number(a.timestamp || 0);
+                });
+
+                showScores(scores);
+                status.textContent = "最後更新：" + new Date().toLocaleTimeString();
+            }, (error) => {
+                tbody.innerHTML = '<tr><td class="empty" colspan="3">讀取 Firebase 失敗</td></tr>';
+                status.textContent = error.message;
             });
-        });
     </script>
 </body>
 </html>
