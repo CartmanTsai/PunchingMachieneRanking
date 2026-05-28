@@ -129,7 +129,7 @@
                     </tr>
                 </thead>
                 <tbody id="leaderboard-body">
-                    <tr><td class="empty" colspan="3">正在讀取資料...</td></tr>
+                    <tr><td class="empty" colspan="4">正在讀取資料...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -145,6 +145,7 @@
         const db = firebase.database();
         const tbody = document.getElementById("leaderboard-body");
         const status = document.getElementById("status");
+        document.querySelector("thead tr").insertAdjacentHTML("beforeend", "<th>時間</th>");
 
         function escapeHtml(text) {
             return String(text || "")
@@ -155,9 +156,38 @@
                 .replaceAll("'", "&#039;");
         }
 
+        function formatTimestamp(timestamp) {
+            const numericTimestamp = Number(timestamp || 0);
+
+            if (!numericTimestamp) {
+                return "-";
+            }
+
+            const milliseconds = numericTimestamp < 10000000000
+                ? numericTimestamp * 1000
+                : numericTimestamp;
+            const date = new Date(milliseconds);
+
+            if (Number.isNaN(date.getTime())) {
+                return "-";
+            }
+
+            const pad = (value) => String(value).padStart(2, "0");
+
+            return [
+                date.getFullYear(),
+                pad(date.getMonth() + 1),
+                pad(date.getDate())
+            ].join("/") + " " + [
+                pad(date.getHours()),
+                pad(date.getMinutes()),
+                pad(date.getSeconds())
+            ].join(":");
+        }
+
         function showScores(scores) {
             if (scores.length === 0) {
-                tbody.innerHTML = '<tr><td class="empty" colspan="3">目前還沒有分數</td></tr>';
+                tbody.innerHTML = '<tr><td class="empty" colspan="4">目前還沒有分數</td></tr>';
                 return;
             }
 
@@ -165,12 +195,14 @@
                 const rankClass = index === 0 ? "rank-1" : "";
                 const playerName = escapeHtml(item.player_name || "Player");
                 const score = Number(item.score || 0);
+                const uploadedAt = formatTimestamp(item.timestamp);
 
                 return `
                     <tr class="${rankClass}">
                         <td>${index + 1}</td>
                         <td>${playerName}</td>
                         <td>${score}</td>
+                        <td>${uploadedAt}</td>
                     </tr>
                 `;
             }).join("");
@@ -200,7 +232,7 @@
                 showScores(scores);
                 status.textContent = "最後更新：" + new Date().toLocaleTimeString();
             }, (error) => {
-                tbody.innerHTML = '<tr><td class="empty" colspan="3">讀取 Firebase 失敗</td></tr>';
+                tbody.innerHTML = '<tr><td class="empty" colspan="4">讀取 Firebase 失敗</td></tr>';
                 status.textContent = error.message;
             });
     </script>
